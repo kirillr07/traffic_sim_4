@@ -1,0 +1,27 @@
+# ДЗ4: конфигурация сервера регулируемого перекрёстка.
+num_directions   = 4
+num_lanes        = 2
+queue_capacity   = 10
+
+car_arrival_percent = 35
+ped_arrival_percent = 10
+emergency_percent   = 1
+
+phase_min        = 3
+phase_max        = 9
+transition       = 2
+
+strategy         = fixed
+
+sim_limit        = 0
+ticks_limit      = 250
+tick_ms          = 15
+
+conflicts = 0 1 0 1 | 1 0 1 0 | 0 1 0 1 | 1 0 1 0
+phases    = 0,2 | 1,3
+
+# Разрешённые манёвры по направлениям: прямо, направо, налево.
+maneuvers = straight,right | straight,left | straight,right | straight,left
+
+# 1 — экстренный транспорт получает приоритет после безопасного завершения фазы.
+emergency_priority = 1
