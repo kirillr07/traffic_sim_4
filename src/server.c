@@ -707,6 +707,10 @@ static void server_shutdown(Server *srv, ShutdownReason reason)
     ProtoMessage m;
     if (proto_build(&m, MSG_SHUTDOWN, server_next_seq(srv), &p) == 0)
         broadcast(srv, &m, 0);
+
+    // Даём клиентам возможность вычитать SHUTDOWN перед закрытием сокета
+    usleep(30000);
+
     pthread_mutex_lock(&srv->clients_mutex);
     for (int i = 0; i < SERVER_MAX_CLIENTS; ++i) {
         ClientSlot *c = &srv->clients[i];
