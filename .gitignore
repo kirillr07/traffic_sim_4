@@ -1,0 +1,42 @@
+# Исполняемые файлы, собираемые Makefile
+/app_server
+/app_client_car
+/app_client_ped
+/app_observer
+
+# Объектные файлы и библиотеки
+*.o
+*.a
+*.so
+*.so.*
+*.d
+
+# Логи работы программы и тестов
+*.log
+/tests/out_*.log
+
+# Временные файлы, создаваемые при запуске
+*.pid
+*.tmp
+*.swp
+*~
+
+# Файлы разделяемой памяти и семафоров (если появятся при отладке)
+/dev/shm/*traffic*
+*.shm
+*.sem
+
+# Каталоги сборки и редакторов
+/build/
+/bin/
+/obj/
+.vscode/
+.idea/
+*.code-workspace
+
+# Артефакты покрытия и профилирования
+*.gcda
+*.gcno
+*.gcov
+gmon.out
+perf.data*
