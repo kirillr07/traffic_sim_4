@@ -1,6 +1,8 @@
 #include "model.h"
 #include "io.h"
 
+#include <string.h>
+
 typedef struct {
     int phase;
     PhaseState state;
@@ -23,25 +25,53 @@ static void snapshot(SharedState *st, Snapshot *s)
     }
 }
 
-static void log_step(const SharedState *st, const Snapshot *before,
+static void emit_phase_event(SharedState *st, ModelEventKind kind,
+                             int phase, int state, unsigned long tick)
+{
+    ModelEvent ev;
+    memset(&ev, 0, sizeof(ev));
+    ev.tick = tick;
+    ev.kind = kind;
+    ev.direction = -1;
+    ev.maneuver = -1;
+    ev.phase = phase;
+    ev.state = state;
+    model_emit(st, &ev);
+}
+
+static void log_step(SharedState *st, const Snapshot *before,
                      const Snapshot *after)
 {
+    unsigned long tick = st->stats.ticks;
+
     if (before->state == PHASE_TRANSITION &&
         after->state == PHASE_GREEN) {
         io_printf(1,
             "[контроллер] такт %ld: конец переходного интервала, начало фазы %d\n",
-            (long)st->stats.ticks, after->phase);
+            (long)tick, after->phase);
+        emit_phase_event(st, MODEL_EVENT_TRANSITION_END, after->phase,
+                         (int)after->state, tick);
+        emit_phase_event(st, MODEL_EVENT_PHASE_START, after->phase,
+                         (int)after->state, tick);
         model_log_phase(st, after->phase);
         model_log_queues(st);
     } else if (before->state == PHASE_GREEN &&
                after->state == PHASE_TRANSITION) {
         io_printf(1,
             "[контроллер] такт %ld: конец фазы %d, переходный интервал %d тактов\n",
-            (long)st->stats.ticks, before->phase, after->transition_left);
+            (long)tick, before->phase, after->transition_left);
+        emit_phase_event(st, MODEL_EVENT_PHASE_END, before->phase,
+                         (int)after->state, tick);
+        emit_phase_event(st, MODEL_EVENT_TRANSITION_START, after->phase,
+                         (int)after->state, tick);
     } else if (before->phase != after->phase) {
         io_printf(1,
             "[контроллер] такт %ld: конец фазы %d, начало фазы %d\n",
-            (long)st->stats.ticks, before->phase, after->phase);
+            (long)tick, before->phase, after->phase);
+        emit_phase_event(st, MODEL_EVENT_PHASE_END, before->phase,
+                         (int)after->state, tick);
+        emit_phase_event(st, MODEL_EVENT_PHASE_START, after->phase,
+                         (int)after->state, tick);
         model_log_phase(st, after->phase);
         model_log_queues(st);
     }
@@ -49,7 +79,9 @@ static void log_step(const SharedState *st, const Snapshot *before,
     if (after->forced_priority && !before->forced_priority) {
         io_printf(1,
             "[контроллер] такт %ld: приоритет экстренному транспорту — завершаем фазу %d\n",
-            (long)st->stats.ticks, before->phase);
+            (long)tick, before->phase);
+        emit_phase_event(st, MODEL_EVENT_EMERGENCY_PRIORITY, before->phase,
+                         (int)after->state, tick);
     }
 
     unsigned long cars = 0;
@@ -68,11 +100,11 @@ static void log_step(const SharedState *st, const Snapshot *before,
     }
 }
 
-int controller_run(SharedState *st, const Config *cfg)
+int controller_run(SharedState *st, const Config *cfg,
+                   ModelTickHook tick_hook, void *ctx)
 {
     Snapshot before;
     Snapshot after;
-    config_print(cfg);
     if (model_lock(st) != 0) return 1;
     model_controller_start(st);
     snapshot(st, &before);
@@ -83,6 +115,10 @@ int controller_run(SharedState *st, const Config *cfg)
               cfg->strategy == STRATEGY_ADAPTIVE ? "adaptive" : "fixed");
     model_log_phase(st, before.phase);
     model_log_queues(st);
+    emit_phase_event(st, MODEL_EVENT_PHASE_START, before.phase,
+                     (int)before.state, st->stats.ticks);
+
+    if (tick_hook) tick_hook(st, ctx);
 
     while (!model_stop(st)) {
         if (model_lock(st) != 0) break;
@@ -91,6 +127,7 @@ int controller_run(SharedState *st, const Config *cfg)
         snapshot(st, &after);
         model_unlock(st);
         log_step(st, &before, &after);
+        if (tick_hook) tick_hook(st, ctx);
         if (done) break;
         model_sleep_ms(cfg->tick_ms);
     }

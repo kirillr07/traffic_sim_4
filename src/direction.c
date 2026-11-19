@@ -1,8 +1,7 @@
-// direction.c - процесс направления: наблюдает за очередями своего слота
+// direction.c - поток направления: наблюдает за очередями своего слота
 
 #include "model.h"
 #include "io.h"
-#include <unistd.h>
 
 void direction_run(SharedState *st, const Config *cfg, int dir)
 {
@@ -10,8 +9,7 @@ void direction_run(SharedState *st, const Config *cfg, int dir)
         io_printf(2, "[направление] ошибка: недопустимый номер %d\n", dir);
         return;
     }
-    io_printf(1, "[направление %d] процесс запущен (pid %ld)\n",
-              dir, (long)getpid());
+    io_printf(1, "[направление %d] поток запущен\n", dir);
     int last_cars = -1;
     int last_peds = -1;
     unsigned long last_car_served = 0;
@@ -47,5 +45,5 @@ void direction_run(SharedState *st, const Config *cfg, int dir)
         model_sleep_ms(cfg->tick_ms);
     }
 
-    io_printf(1, "[направление %d] процесс завершён\n", dir);
+    io_printf(1, "[направление %d] поток завершён\n", dir);
 }
