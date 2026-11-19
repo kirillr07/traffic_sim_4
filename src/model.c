@@ -132,7 +132,7 @@ int model_init(SharedState *st, const Config *cfg)
     st->ctrl.transition_left = 0;
     st->ctrl.forced_priority = 0;
     st->ctrl.green_len = st->cfg.phase_max > 0 ? st->cfg.phase_max : 1;
-    st->stop = 0;
+    atomic_store_explicit(&st->stop, 0, memory_order_relaxed);
 
     if (pthread_mutex_init(&st->lock, NULL) != 0)
         return -1;
@@ -158,12 +158,18 @@ void model_unlock(SharedState *st)
 
 int model_stop(const SharedState *st)
 {
-    return st->stop != 0;
+    return atomic_load_explicit(&st->stop, memory_order_relaxed) != 0;
 }
 
 void model_request_stop(SharedState *st)
 {
-    st->stop = 1;
+    atomic_store_explicit(&st->stop, 1, memory_order_relaxed);
+}
+
+void model_emit(SharedState *st, const ModelEvent *ev)
+{
+    if (st->event_sink)
+        st->event_sink(ev, st->event_ctx);
 }
 
 // направления
@@ -391,7 +397,7 @@ int model_controller_step(SharedState *st)
     if (st->cfg.ticks_limit > 0 && st->stats.ticks >= (unsigned long)st->cfg.ticks_limit)
         done = 1;
 
-    if (done) st->stop = 1;
+    if (done) atomic_store_explicit(&st->stop, 1, memory_order_relaxed);
     return done;
 }
 
@@ -423,15 +429,23 @@ void model_log_phase(const SharedState *st, int phase)
     io_printf(1, "%s", line);
 }
 
-void model_log_queues(const SharedState *st)
+void model_log_queues(SharedState *st)
 {
+    int counts[MAX_DIRECTIONS];
+    int n_dirs = st->cfg.num_directions;
+
+    // Очереди меняются клиентскими потоками — читаем их под мьютексом.
+    if (model_lock(st) != 0) return;
+    for (int d = 0; d < n_dirs; ++d)
+        counts[d] = st->dirs[d].cars_waiting + st->dirs[d].peds_waiting;
+    model_unlock(st);
+
     char line[512];
     int n = snprintf(line, sizeof(line), "[контроллер] очереди:");
-    for (int d = 0; d < st->cfg.num_directions && n > 0 &&
+    for (int d = 0; d < n_dirs && n > 0 &&
                     (size_t)n < sizeof(line); ++d) {
-        n += snprintf(line + n, sizeof(line) - (size_t)n, " %d:%ld", d,
-                      (long)(st->dirs[d].cars_waiting +
-                             st->dirs[d].peds_waiting));
+        n += snprintf(line + n, sizeof(line) - (size_t)n, " %d:%d", d,
+                      counts[d]);
     }
     if (n > 0 && (size_t)n < sizeof(line))
         snprintf(line + n, sizeof(line) - (size_t)n, "\n");

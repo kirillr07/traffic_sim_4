@@ -3,9 +3,11 @@
 
 #include <pthread.h>
 #include <signal.h>
+#include <stdatomic.h>
 #include <stddef.h>
 
 #include "config.h"
+#include "events.h"
 
 // Состояние одного направления
 typedef struct {
@@ -52,9 +54,18 @@ typedef struct {
     ControllerState ctrl;
     Stats stats;
 
-    volatile sig_atomic_t stop;
+    // Флаг остановки. Атомарный, чтобы его можно было выставлять
+    // из обработчика сигнала и читать из рабочих потоков.
+    atomic_int stop;
     pthread_mutex_t lock;
+
+    // Приёмник событий модели. Устанавливается сервером.
+    ModelEventSink event_sink;
+    void *event_ctx;
 } SharedState;
+
+// Хук, вызываемый контроллером после каждого такта (например, для снимков)
+typedef void (*ModelTickHook)(SharedState *st, void *ctx);
 
 // Создание и уничтожение состояния сервера
 int  model_init(SharedState *st, const Config *cfg);
@@ -65,6 +76,9 @@ int  model_lock(SharedState *st);
 void model_unlock(SharedState *st);
 int  model_stop(const SharedState *st);
 void model_request_stop(SharedState *st);
+
+// Передать событие модели установленному приёмнику
+void model_emit(SharedState *st, const ModelEvent *ev);
 
 // Слоты направлений
 int  model_add_car(SharedState *st, int dir, int emergency, int maneuver);
@@ -80,12 +94,13 @@ void model_print_stats(const SharedState *st);
 int  model_save_stats(const SharedState *st, const char *path);
 
 // Потоки сервера
-int  controller_run(SharedState *st, const Config *cfg);
+int  controller_run(SharedState *st, const Config *cfg,
+                    ModelTickHook tick_hook, void *ctx);
 void direction_run(SharedState *st, const Config *cfg, int dir);
 
 void model_sleep_ms(int ms);
 const char *model_maneuver_name(int m);
 void model_log_phase(const SharedState *st, int phase);
-void model_log_queues(const SharedState *st);
+void model_log_queues(SharedState *st);
 
 #endif /* MODEL_H */
