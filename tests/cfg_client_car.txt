@@ -1,0 +1,4 @@
+# ДЗ4: конфигурация клиента-генератора автомобилей
+car_arrival_percent = 30
+emergency_percent   = 3
+tick_ms             = 30
