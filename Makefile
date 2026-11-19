@@ -35,7 +35,6 @@ test_protocol: tests/test_protocol.c src/protocol.c src/net.c src/io.c $(HDR)
 
 check: test_protocol
 	./test_protocol
-// --- Ожидаемый размер payload ---
 
 run: all
 	./run_server.sh
