@@ -3,6 +3,7 @@
 /app_client_car
 /app_client_ped
 /app_observer
+/test_protocol
 
 # Объектные файлы и библиотеки
 *.o
