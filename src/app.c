@@ -3,16 +3,30 @@
 #include "app.h"
 #include "io.h"
 
+#include <errno.h>
 #include <signal.h>
+#include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
 
 static SharedState *g_signal_state = NULL;
+static atomic_int g_signal_received = 0;
 
 static void handle_signal(int sig)
 {
-    (void)sig;
-    if (g_signal_state) g_signal_state->stop = 1;
+    int saved_errno = errno;
+
+    atomic_store_explicit(&g_signal_received, sig, memory_order_relaxed);
+    if (g_signal_state)
+        atomic_store_explicit(&g_signal_state->stop, 1,
+                              memory_order_relaxed);
+
+    errno = saved_errno;
+}
+
+int app_signal_received(void)
+{
+    return atomic_load_explicit(&g_signal_received, memory_order_relaxed);
 }
 
 void app_setup_signals(SharedState *st)
