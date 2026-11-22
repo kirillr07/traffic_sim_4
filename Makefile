@@ -39,7 +39,7 @@ check: test_protocol
 run: all
 	./run_server.sh
 
-test: all
+test: all test_protocol
 	./tests/run_tests.sh
 
 clean:

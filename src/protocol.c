@@ -169,8 +169,8 @@ int proto_encode(ProtoMessage *m, const ProtoPayload *p)
         put_u16(buf, &off, p->hello_ack.queue_capacity);
         put_u32(buf, &off, p->hello_ack.tick_ms);
         for (int d = 0; d < MAX_DIRECTIONS; ++d)
-            for (int m = 0; m < MANEUVER_COUNT; ++m)
-                put_u8(buf, &off, p->hello_ack.maneuvers[d][m]);
+            for (int man = 0; man < MANEUVER_COUNT; ++man)
+                put_u8(buf, &off, p->hello_ack.maneuvers[d][man]);
         put_u8(buf, &off, p->hello_ack.phases_count);
         for (int ph = 0; ph < MAX_PHASES; ++ph)
             for (int d = 0; d < MAX_DIRECTIONS; ++d)
@@ -291,8 +291,8 @@ int proto_decode(const ProtoMessage *m, ProtoPayload *p)
         p->hello_ack.queue_capacity = get_u16(buf, &off);
         p->hello_ack.tick_ms = get_u32(buf, &off);
         for (int d = 0; d < MAX_DIRECTIONS; ++d)
-            for (int m = 0; m < MANEUVER_COUNT; ++m)
-                p->hello_ack.maneuvers[d][m] = get_u8(buf, &off);
+            for (int man = 0; man < MANEUVER_COUNT; ++man)
+                p->hello_ack.maneuvers[d][man] = get_u8(buf, &off);
         p->hello_ack.phases_count = get_u8(buf, &off);
         for (int ph = 0; ph < MAX_PHASES; ++ph)
             for (int d = 0; d < MAX_DIRECTIONS; ++d)

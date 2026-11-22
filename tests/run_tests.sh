@@ -60,10 +60,10 @@ wait_for_port() {
 # Сборка проекта
 ((TOTAL_TESTS++)) || true
 log_header "0. Сборка проекта (Makefile)"
-if make all; then
-    log_pass "Все бинарники успешно собраны с флагами -Wall -Wextra -Wpedantic"
+if make all test_protocol; then
+    log_pass "Все бинарники и тестовые утилиты успешно собраны с флагами -Wall -Wextra -Wpedantic"
 else
-    log_fail "Ошибка сборки make all"
+    log_fail "Ошибка сборки make all test_protocol"
     exit 1
 fi
 
